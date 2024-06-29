@@ -11,11 +11,21 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@fastify/cors": "^9.0.1",
+    "@types/cors": "^2.8.17",
+    "@types/fastify-accepts": "^1.0.0",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "fastify": "^4.28.0"
+    "express": "^4.19.2",
+    "fastify": "^4.28.0",
+    "fastify-express": "^0.4.0",
+    "fastify-socket.io": "^5.0.0",
+    "socket.io": "^4.7.5",
+    "stream-chat": "^8.37.0"
   },
   "devDependencies": {
-    "@types/node": "^20.14.8",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.9",
     "nodemon": "^3.1.4",
     "ts-node": "^10.9.2",
     "typescript": "^4.9.5"
