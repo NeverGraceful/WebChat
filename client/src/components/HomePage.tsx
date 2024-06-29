@@ -10,7 +10,7 @@ type Channel = {
   members: string[];
 };
 
-export function Home() {
+export function HomePage() {
   const { user, socket } = useLoggedInAuth();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);

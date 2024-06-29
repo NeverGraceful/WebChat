@@ -4,11 +4,14 @@ import { Button } from "./Button"
 import { Input } from "./Input"
 import { useAuth } from "./context/AuthContext"
 
-export function Login() {
+export function LoginPage() {
   const { login, user } = useAuth()
   const usernameRef = useRef<HTMLInputElement>(null)
 
-  if (user != null) return <Navigate to="/" />
+  if (user != undefined){
+    console.log("user != undefined")
+    return <Navigate to="/" />
+  }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()

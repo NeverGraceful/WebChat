@@ -7,13 +7,13 @@ interface childrenProps {
     children: ReactNode
 }
 
-export function AuthentLayout({ children }: childrenProps) {
+export function AuthLayout() {
   const location = useLocation()
   const isLoginPage = location.pathname === "/login"
   return (
     <AuthCard>
       <AuthCard.body>
-        {children}
+        {/* {children} */}
         <Outlet />
       </AuthCard.body>
       <AuthCard.below>

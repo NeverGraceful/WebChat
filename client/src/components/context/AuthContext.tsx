@@ -31,8 +31,7 @@ export function useAuth() {
 }
 
 export function useLoggedInAuth() {
-  return useContext(Context) as AuthContext &
-    Required<Pick<AuthContext, "user">>;
+  return useContext(Context) as AuthContext & Required<Pick<AuthContext, "user">>;
 }
 
 type AuthProviderProps = {
@@ -43,7 +42,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const navigate = useNavigate();
   const [user, setUser] = useLocalStorage<User>("user");
   const [token, setToken] = useLocalStorage<string>("token");
-  const [socket, setSocket] = useState<Socket>();
+  const [socket, setSocket] = useState<Socket | undefined>();
 
   const signup = useMutation({
     mutationFn: (user: User) => {
@@ -90,6 +89,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (token == null || user == null) return;
 
     console.log('Attempting to connect to socket with token:', token);
+    console.log('Attempting to connect to socket with user:', user);
 
     const newSocket = io(import.meta.env.VITE_SERVER_URL, {
       auth: { token },
