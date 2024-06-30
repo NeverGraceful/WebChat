@@ -40,7 +40,7 @@ const io = new Server(server, {
 
 // Debug socket connections
 io.on('connection', (socket) => {
-  console.log('a user connected');
+  console.log('a user connected', { id: socket.id, address: socket.handshake.address });
 
   socket.on('get_channels', ({ userId }) => {
     const userChannels = channels.filter(channel => channel.members.includes(userId));

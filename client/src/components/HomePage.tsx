@@ -49,7 +49,9 @@ export function HomePage() {
     setNewMessage("");
   };
 
-  if (!socket) return <div>Loading...</div>;
+  if (!socket) {
+    return <div>Loading...</div>;
+  } 
 
   return (
     <div className="chat-container">
