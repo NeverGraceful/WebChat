@@ -29,6 +29,13 @@ const messages = {
   '2': ['Hello Random!'],
 };
 
+interface User {
+  id: string;
+  name: string;
+}
+
+const users: User[] = [];
+
 // Create HTTP server and attach Socket.io
 const server = createServer(app);
 const io = new Server(server, {
@@ -57,6 +64,14 @@ io.on('connection', (socket) => {
     if (!messages[channelId]) messages[channelId] = [];
     messages[channelId].push(message);
     io.to(channelId).emit('messages', messages[channelId]);
+  });
+
+  socket.on('get_users', (clientUsers: User[]) => {
+    // Update server-side users with the data received from the client
+    users.length = 0;
+    users.push(...clientUsers);
+    console.log("# of users: ", users)
+    socket.emit('users', users);
   });
 
   socket.on('disconnect', () => {

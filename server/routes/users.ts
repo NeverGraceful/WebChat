@@ -29,7 +29,9 @@ router.post('/signup', (req: Request, res: Response) => {
   const newUser: User = { id, name };
   users.push(newUser);
   console.log('User signed up successfully:', newUser);
-  res.send('User signed up');
+  res.send({
+    user: { name: newUser.name, id: newUser.id },
+  });
 });
 
 router.post('/login', (req: Request, res: Response) => {
@@ -45,7 +47,7 @@ router.post('/login', (req: Request, res: Response) => {
     return res.status(401).send('User not found');
   }
 
-  const token = `${id}-${new Date().getTime()}`; // Simple token for demo purposes
+  const token = `${id}-${new Date().getTime()}`; 
   TOKEN_USER_ID_MAP.set(token, user.id);
 
   res.send({

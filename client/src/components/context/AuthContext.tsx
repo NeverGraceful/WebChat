@@ -8,9 +8,9 @@ import { useLocalStorage } from "../hooks/useLocalStorage";
 type AuthContext = {
   user?: User;
   socket?: Socket;
-  signup: UseMutationResult<AxiosResponse, unknown, User>;
-  login: UseMutationResult<{ token: string; user: User }, unknown, string>;
-  logout: UseMutationResult<AxiosResponse, unknown, void>;
+  signup: UseMutationResult<{ user: User }, Error, User>;
+  login: UseMutationResult<{ token: string; user: User }, Error, string>;
+  logout: UseMutationResult<AxiosResponse, Error, void>;
 };
 
 type User = {
@@ -35,22 +35,25 @@ type AuthProviderProps = {
 export function AuthProvider({ children }: AuthProviderProps) {
   const navigate = useNavigate();
   const [user, setUser] = useLocalStorage<User>("user");
+  const [users, setUsers] = useLocalStorage<User[]>("users", []);
   const [token, setToken] = useLocalStorage<string>("token");
   const [socket, setSocket] = useState<Socket | undefined>();
 
   const signup = useMutation({
     mutationFn: (user: User) => {
-      return axios.post(`${import.meta.env.VITE_SERVER_URL}/api/signup`, user);
+      return axios.post<{ user: User }>(`${import.meta.env.VITE_SERVER_URL}/api/signup`, user).then(res => res.data);
     },
-    onSuccess() {
+    onSuccess(data) {
+      const updatedUsers = [...(users ?? []), data.user];
+      setUsers(updatedUsers);
       navigate("/login");
     },
   });
 
   const login = useMutation({
     mutationFn: (id: string) => {
-      return axios.post(`${import.meta.env.VITE_SERVER_URL}/api/login`, { id })
-        .then(res => res.data as { token: string; user: User });
+      return axios.post<{ token: string; user: User }>(`${import.meta.env.VITE_SERVER_URL}/api/login`, { id })
+        .then(res => res.data);
     },
     onSuccess(data) {
       setUser(data.user);

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/Button";
 import { useLoggedInAuth } from "./context/AuthContext";
+import { useLocalStorage } from "./hooks/useLocalStorage";
 
 type Channel = {
   id: string;
@@ -10,12 +11,19 @@ type Channel = {
   members: string[];
 };
 
+type User = {
+  id: string;
+  name: string;
+};
+
 export function HomePage() {
   const { user, socket } = useLoggedInAuth();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
   const [messages, setMessages] = useState<string[]>([]);
   const [newMessage, setNewMessage] = useState<string>("");
+  const [users, setUsers] = useState<User[]>([]);
+  const [localUsers] = useLocalStorage<User[]>("users", []); // Retrieve users from local storage
 
   useEffect(() => {
     if (!socket) return;
@@ -30,11 +38,20 @@ export function HomePage() {
       setMessages(messages);
     });
 
+    // Emit get_users event with local users data
+    socket.emit("get_users", localUsers);
+
+    // Handle users event
+    socket.on("users", (users: User[]) => {
+      setUsers(users);
+    });
+
     return () => {
       socket.off("channels");
       socket.off("messages");
+      socket.off("users");
     };
-  }, [socket, user.id]);
+  }, [socket, user.id, localUsers]);
 
   const handleChannelSelect = (channel: Channel) => {
     setActiveChannel(channel);
@@ -51,7 +68,7 @@ export function HomePage() {
 
   if (!socket) {
     return <div>Loading...</div>;
-  } 
+  }
 
   return (
     <div className="chat-container">
@@ -74,6 +91,14 @@ export function HomePage() {
         ) : (
           <div>Select a channel to start chatting</div>
         )}
+      </div>
+      <div className="user-list">
+        <h3>Users</h3>
+        <ul>
+          {users.map((user) => (
+            <li key={user.id}>{user.name}</li>
+          ))}
+        </ul>
       </div>
     </div>
   );
