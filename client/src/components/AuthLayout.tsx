@@ -1,11 +1,11 @@
-import { ReactNode } from 'react';
+// import { ReactNode } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { AuthCard } from './AuthCard';
 import { Link } from './Link';
 
-interface childrenProps {
-    children: ReactNode
-}
+// interface childrenProps {
+//     children: ReactNode
+// }
 
 export function AuthLayout() {
   const location = useLocation()
