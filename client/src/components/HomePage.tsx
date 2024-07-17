@@ -7,7 +7,6 @@ import { useLocalStorage } from "./hooks/useLocalStorage";
 type Channel = {
   id: string;
   name: string;
-  image?: string;
   members: string[];
 };
 
@@ -23,46 +22,53 @@ export function HomePage() {
   const [messages, setMessages] = useState<string[]>([]);
   const [newMessage, setNewMessage] = useState<string>("");
   const [users, setUsers] = useState<User[]>([]);
-  const [localUsers] = useLocalStorage<User[]>("users", []); // Retrieve users from local storage
+  const [localUsers] = useLocalStorage<User[]>("users", []); 
+  // const [localChannels] = useLocalStorage<Channel[]>("channels", []); 
 
   useEffect(() => {
     if (!socket) return;
-
-    socket.emit("get_channels", { userId: user.id });
-
-    socket.on("channels", (channels: Channel[]) => {
-      setChannels(channels);
+  
+    // Request channels for the current user
+    socket.emit("get_channels", { userId: user.id }, (response: any) => {
+      if (response.success) {
+        setChannels(response.channels);
+      } else {
+        console.error("Failed to get channels:", response.error);
+      }
     });
-
+  
+    // Listen for messages data
     socket.on("messages", (messages: string[]) => {
       setMessages(messages);
     });
-
-    // Emit get_users event with local users data
-    socket.emit("get_users", localUsers);
-
-    // Handle users event
-    socket.on("users", (users: User[]) => {
-      setUsers(users);
+  
+    // Emit add_and_get_users event with a callback function
+    socket.emit("add_and_get_users", localUsers, (response: any) => {
+      if (response.success) {
+        setUsers(response.users);
+      } else {
+        console.error("Failed to add users:", response.error);
+      }
     });
-
+  
+    // Cleanup listeners on component unmount
     return () => {
-      socket.off("channels");
       socket.off("messages");
-      socket.off("users");
     };
-  }, [socket, user.id, localUsers]);
+  }, [socket, user.id]);
 
   const handleChannelSelect = (channel: Channel) => {
     setActiveChannel(channel);
-    if (socket)
-        socket.emit("join_channel", { channelId: channel.id });
+    if (socket) {
+      socket.emit("join_channel", { channelId: channel.id });
+    }
   };
 
   const handleSendMessage = () => {
     if (newMessage.trim() === "") return;
-    if (socket)
-        socket.emit("send_message", { channelId: activeChannel?.id, message: newMessage });
+    if (socket) {
+      socket.emit("send_message", { channelId: activeChannel?.id, message: newMessage });
+    }
     setNewMessage("");
   };
 
@@ -133,12 +139,12 @@ function Channels({
               className={`p-4 rounded-lg flex gap-3 items-center ${extraClasses}`}
               key={channel.id}
             >
-              {channel.image && (
+              {/* {channel.image && (
                 <img
                   src={channel.image}
                   className="w-10 h-10 rounded-full object-center object-cover"
                 />
-              )}
+              )} */}
               <div className="text-ellipsis overflow-hidden whitespace-nowrap">
                 {channel.name || channel.id}
               </div>

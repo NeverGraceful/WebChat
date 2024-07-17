@@ -11,17 +11,21 @@ import io from 'socket.io-client';
 
 const socket = io(import.meta.env.VITE_SERVER_URL);
 
+interface User {
+  id: string;
+  name: string;
+}
+
 export function Channel() {
   const { user } = useLoggedInAuth();
   const navigate = useNavigate();
   const nameRef = useRef<HTMLInputElement>(null);
-  const imageUrlRef = useRef<HTMLInputElement>(null);
   const memberIdsRef = useRef<SelectInstance<{ label: string; value: string }>>(null);
 
   const createChannel = useMutation({
-    mutationFn: ({ name, memberIds, imageUrl }: { name: string, memberIds: string[], imageUrl?: string }) => {
+    mutationFn: ({ name, memberIds }: { name: string, memberIds: string[] }) => {
       return new Promise<void>((resolve, reject) => {
-        socket.emit('create_channel', { name, memberIds, imageUrl, creatorId: user.id }, (response: any) => {
+        socket.emit('create_channel', { name, memberIds, creatorId: user.id }, (response: any) => {
           if (response.success) {
             resolve();
           } else {
@@ -33,15 +37,20 @@ export function Channel() {
     onSuccess() {
       navigate("/");
     },
+    onError(error) {
+      console.error("Failed to create channel:", error);
+      alert("Failed to create channel. Please try again.");
+    }
   });
 
-  const users = useQuery({
-    queryKey: ["socket", "users"],
+  const { data: users, isLoading: usersLoading, error: usersError } = useQuery({
+    queryKey: ["socket", "users", user.id],
     queryFn: () => {
-      return new Promise<any>((resolve, reject) => {
-        socket.emit('get_users', { excludeId: user.id }, (response: any) => {
+      return new Promise<User[]>((resolve, reject) => {
+        socket.emit('get_users', (response: any) => {
           if (response.success) {
             resolve(response.users);
+            console.log("Users: ",users)
           } else {
             reject(response.error);
           }
@@ -55,7 +64,6 @@ export function Channel() {
     e.preventDefault();
 
     const name = nameRef.current?.value;
-    const imageUrl = imageUrlRef.current?.value;
     const selectOptions = memberIdsRef.current?.getValue();
     if (!name || !selectOptions || selectOptions.length === 0) {
       return;
@@ -63,7 +71,6 @@ export function Channel() {
 
     createChannel.mutate({
       name,
-      imageUrl,
       memberIds: selectOptions.map(option => option.value),
     });
   }
@@ -74,6 +81,10 @@ export function Channel() {
       socket.off('create_channel');
     };
   }, []);
+
+  if (usersError) {
+    return <div>Error loading users: {usersError.message}</div>;
+  }
 
   return (
     <AuthCard>
@@ -87,8 +98,6 @@ export function Channel() {
         >
           <label htmlFor="name">Name</label>
           <Input id="name" required ref={nameRef} />
-          <label htmlFor="imageUrl">Image Url</label>
-          <Input id="imageUrl" ref={imageUrlRef} />
           <label htmlFor="members">Members</label>
           <Select
             ref={memberIdsRef}
@@ -96,8 +105,8 @@ export function Channel() {
             required
             isMulti
             classNames={{ container: () => "w-full" }}
-            isLoading={users.isPending}
-            options={users.data?.map((user: any) => {
+            isLoading={usersLoading}
+            options={users?.map((user: User) => {
               return { value: user.id, label: user.name || user.id };
             })}
           />

@@ -18,23 +18,28 @@ app.use(express.json());
 // Register user routes
 app.use('/api', userRoutes);
 
-// Sample data
-const channels = [
-  { id: '1', name: 'General', members: ['1', '2'] },
-  { id: '2', name: 'Random', members: ['2', '3'] },
-];
+interface Channel {
+  id: string;
+  name: string;
+  memberIds: string[];
+  creatorId: string;
+}
 
-const messages = {
-  '1': ['Hello General!'],
-  '2': ['Hello Random!'],
-};
+let channels: Channel[] = [];
+
+interface Message {
+  channelId: string;
+  message: string;
+}
+
+let messages: Message[] = [];
 
 interface User {
   id: string;
   name: string;
 }
 
-const users: User[] = [];
+let users: User[] = [];
 
 // Create HTTP server and attach Socket.io
 const server = createServer(app);
@@ -49,29 +54,98 @@ const io = new Server(server, {
 io.on('connection', (socket) => {
   console.log('a user connected', { id: socket.id, address: socket.handshake.address });
 
-  socket.on('get_channels', ({ userId }) => {
-    const userChannels = channels.filter(channel => channel.members.includes(userId));
-    socket.emit('channels', userChannels);
+  // Generates a unique channel ID
+  const generateChannelId = (): string => {
+    return Math.random().toString(36).substring(2, 15);
+  };
+
+  // Makes a new channel including all memberIds given
+  socket.on('create_channel', ({ name, memberIds, creatorId }, callback) => {
+    if (!name || !memberIds || !creatorId) {
+      callback({ success: false, error: 'Invalid data' });
+      return;
+    }
+  
+    const newChannel: Channel = {
+      id: generateChannelId(),
+      name,
+      memberIds,
+      creatorId,
+    };
+  
+    channels.push(newChannel);
+    console.log(channels);
+    callback({ success: true, channel: newChannel });
   });
 
+  // Returns channel that corresponds to the channelId given
+  socket.on('get_channel', ({ channelId }, callback) => {
+    const channel = channels.find(c => c.id === channelId);
+  
+    if (channel) {
+      callback({ success: true, channel });
+    } else {
+      callback({ success: false, error: 'Channel not found' });
+    }
+  });
+
+  // Retrieves all channels the user is a member of
+  socket.on('get_channels', ({ userId }, callback) => {
+    if (!userId) {
+      callback({ success: false, error: 'User ID not provided' });
+      return;
+    }
+  
+    const userChannels = channels.filter(channel => channel.memberIds.includes(userId));
+  
+    if (userChannels.length > 0) {
+      callback({ success: true, channels: userChannels });
+    } else {
+      callback({ success: false, error: 'No channels found for the user' });
+    }
+  });
+
+  // Moves the user into a channel
   socket.on('join_channel', ({ channelId }) => {
     socket.join(channelId);
     const channelMessages = messages[channelId] || [];
     socket.emit('messages', channelMessages);
   });
 
-  socket.on('send_message', ({ channelId, message }) => {
-    if (!messages[channelId]) messages[channelId] = [];
-    messages[channelId].push(message);
-    io.to(channelId).emit('messages', messages[channelId]);
+  // socket.on('send_message', ({ channelId, message }) => {
+  //   if (!messages[channelId]) messages[channelId] = [];
+  //   messages[channelId].push(message);
+  //   io.to(channelId).emit('messages', messages[channelId]);
+  // });
+
+  // socket.on('get_users', (clientUsers: User[]) => {
+  //   // Update server-side users with the data received from the client
+  //   users.length = 0;
+  //   users.push(...clientUsers);
+  //   console.log("# of users: ", users)
+  //   socket.emit('users', users);
+  // });
+  
+  // Returns all users
+  socket.on('get_users', (callback) => {
+    callback({ success: true, users });
   });
 
-  socket.on('get_users', (clientUsers: User[]) => {
-    // Update server-side users with the data received from the client
-    users.length = 0;
-    users.push(...clientUsers);
-    console.log("# of users: ", users)
-    socket.emit('users', users);
+  // Adds current users and returns all users
+  socket.on('add_and_get_users', (clientUsers: User[], callback) => {
+    if (!Array.isArray(clientUsers)) {
+      callback({ success: false, error: 'Invalid data format', users });
+      return;
+    }
+  
+    const newUsers = clientUsers.filter(clientUser => 
+      !users.some(user => user.id === clientUser.id)
+    );
+  
+    users.push(...newUsers);
+  
+    console.log("# of users: ", users.length);
+    callback({ success: true, users });
   });
 
   socket.on('disconnect', () => {
