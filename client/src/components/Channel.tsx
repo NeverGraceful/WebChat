@@ -16,32 +16,40 @@ interface User {
   name: string;
 }
 
+interface Channel {
+  id: string;
+  name: string;
+  memberIds: string[];
+  creatorId: string;
+}
+
 export function Channel() {
-  const { user } = useLoggedInAuth();
-  const navigate = useNavigate();
+  const { user, createChannel } = useLoggedInAuth();
+  // const navigate = useNavigate();
   const nameRef = useRef<HTMLInputElement>(null);
   const memberIdsRef = useRef<SelectInstance<{ label: string; value: string }>>(null);
 
-  const createChannel = useMutation({
-    mutationFn: ({ name, memberIds }: { name: string, memberIds: string[] }) => {
-      return new Promise<void>((resolve, reject) => {
-        socket.emit('create_channel', { name, memberIds, creatorId: user.id }, (response: any) => {
-          if (response.success) {
-            resolve();
-          } else {
-            reject(response.error);
-          }
-        });
-      });
-    },
-    onSuccess() {
-      navigate("/");
-    },
-    onError(error) {
-      console.error("Failed to create channel:", error);
-      alert("Failed to create channel. Please try again.");
-    }
-  });
+  // const createChannel = useMutation({
+  //   mutationFn: ({ name, memberIds }: { name: string, memberIds: string[] }) => {
+  //     return new Promise<void>((resolve, reject) => {
+  //       socket.emit('create_channel', { name, memberIds, creatorId: user.id }, (response: any) => {
+  //         if (response.success) {
+  //           resolve();
+            
+  //         } else {
+  //           reject(response.error);
+  //         }
+  //       });
+  //     });
+  //   },
+  //   onSuccess() {
+  //     navigate("/");
+  //   },
+  //   onError(error) {
+  //     console.error("Failed to create channel:", error);
+  //     alert("Failed to create channel. Please try again.");
+  //   }
+  // });
 
   const { data: users, isLoading: usersLoading, error: usersError } = useQuery({
     queryKey: ["socket", "users", user.id],
@@ -69,22 +77,37 @@ export function Channel() {
       return;
     }
 
-    createChannel.mutate({
-      name,
-      memberIds: selectOptions.map(option => option.value),
-    });
+    const generateChannelId = (): string => {
+      return Math.random().toString(36).substring(2, 15);
+    };
+
+    const memberIds = selectOptions.map(option => option.value);
+    let allMemberIds: string[] = [];
+    allMemberIds.push(user.id);
+    allMemberIds.push(...memberIds);
+
+    const newChannel: Channel = { id: generateChannelId(), name, memberIds: allMemberIds, creatorId: user.id};
+
+    createChannel.mutate(newChannel);
   }
 
   useEffect(() => {
     return () => {
       socket.off('get_users');
-      socket.off('create_channel');
+      // socket.off('create_channel');
     };
   }, []);
 
   if (usersError) {
     return <div>Error loading users: {usersError.message}</div>;
   }
+
+  const channelMemberOptions = users?.map((userItem: User) => {
+    if (userItem.id === user.id) {
+      return null;
+    }
+    return { value: userItem.id, label: userItem.name || userItem.id };
+  }).filter(option => option !== null);
 
   return (
     <AuthCard>
@@ -105,10 +128,8 @@ export function Channel() {
             required
             isMulti
             classNames={{ container: () => "w-full" }}
-            isLoading={usersLoading}
-            options={users?.map((user: User) => {
-              return { value: user.id, label: user.name || user.id };
-            })}
+            isLoading={ usersLoading }
+            options={ channelMemberOptions }
           />
           <Button
             disabled={createChannel.isPending}

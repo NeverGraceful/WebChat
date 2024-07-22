@@ -55,33 +55,48 @@ io.on('connection', (socket) => {
   console.log('a user connected', { id: socket.id, address: socket.handshake.address });
 
   // Generates a unique channel ID
-  const generateChannelId = (): string => {
-    return Math.random().toString(36).substring(2, 15);
-  };
+  // const generateChannelId = (): string => {
+  //   return Math.random().toString(36).substring(2, 15);
+  // };
 
   // Makes a new channel including all memberIds given
-  socket.on('create_channel', ({ name, memberIds, creatorId }, callback) => {
-    if (!name || !memberIds || !creatorId) {
-      callback({ success: false, error: 'Invalid data' });
-      return;
+  // socket.on('create_channel', ({ name, memberIds, creatorId }, callback) => {
+  //   if (!name || !memberIds || !creatorId) {
+  //     callback({ success: false, error: 'Invalid data' });
+  //     return;
+  //   }
+
+  //   let allMemberIds: string[] = [];
+  //   allMemberIds.push(creatorId);
+  //   allMemberIds.push(...memberIds);
+  
+  //   const newChannel: Channel = {
+  //     id: generateChannelId(),
+  //     name,
+  //     memberIds: allMemberIds,
+  //     creatorId,
+  //   };
+  
+  //   channels.push(newChannel);
+  //   console.log(channels);
+  //   callback({ success: true, channel: newChannel });
+  // });
+
+  socket.on('update_channels', ({ localChannels }) => {
+    if (localChannels != undefined){
+      channels.push(...localChannels);
     }
-  
-    const newChannel: Channel = {
-      id: generateChannelId(),
-      name,
-      memberIds,
-      creatorId,
-    };
-  
-    channels.push(newChannel);
-    console.log(channels);
-    callback({ success: true, channel: newChannel });
+    if (channels != undefined){
+      localChannels.push(...channels)
+    }
   });
 
   // Returns channel that corresponds to the channelId given
   socket.on('get_channel', ({ channelId }, callback) => {
-    const channel = channels.find(c => c.id === channelId);
-  
+    let channel = channels.find(c => c.id === channelId);
+    // if (channel == undefined){
+    //   channel = localChannels.find(c => c.id === channelId);
+    // }
     if (channel) {
       callback({ success: true, channel });
     } else {
@@ -96,7 +111,7 @@ io.on('connection', (socket) => {
       return;
     }
   
-    const userChannels = channels.filter(channel => channel.memberIds.includes(userId));
+    const userChannels = channels.filter(channel => Array.isArray(channel.memberIds) && channel.memberIds.includes(userId));
   
     if (userChannels.length > 0) {
       callback({ success: true, channels: userChannels });
@@ -111,20 +126,6 @@ io.on('connection', (socket) => {
     const channelMessages = messages[channelId] || [];
     socket.emit('messages', channelMessages);
   });
-
-  // socket.on('send_message', ({ channelId, message }) => {
-  //   if (!messages[channelId]) messages[channelId] = [];
-  //   messages[channelId].push(message);
-  //   io.to(channelId).emit('messages', messages[channelId]);
-  // });
-
-  // socket.on('get_users', (clientUsers: User[]) => {
-  //   // Update server-side users with the data received from the client
-  //   users.length = 0;
-  //   users.push(...clientUsers);
-  //   console.log("# of users: ", users)
-  //   socket.emit('users', users);
-  // });
   
   // Returns all users
   socket.on('get_users', (callback) => {

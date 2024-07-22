@@ -22,13 +22,14 @@ export function HomePage() {
   const [messages, setMessages] = useState<string[]>([]);
   const [newMessage, setNewMessage] = useState<string>("");
   const [users, setUsers] = useState<User[]>([]);
-  const [localUsers] = useLocalStorage<User[]>("users", []); 
-  // const [localChannels] = useLocalStorage<Channel[]>("channels", []); 
+  const [localUsers] = useLocalStorage<User[]>("users", []);
+  const [localChannels] = useLocalStorage<Channel[]>("channels", []);
 
   useEffect(() => {
     if (!socket) return;
-  
-    // Request channels for the current user
+
+    socket.emit("update_channels", { localChannels });
+    // console.log(localChannels);
     socket.emit("get_channels", { userId: user.id }, (response: any) => {
       if (response.success) {
         setChannels(response.channels);
@@ -36,13 +37,11 @@ export function HomePage() {
         console.error("Failed to get channels:", response.error);
       }
     });
-  
-    // Listen for messages data
+
     socket.on("messages", (messages: string[]) => {
       setMessages(messages);
     });
-  
-    // Emit add_and_get_users event with a callback function
+
     socket.emit("add_and_get_users", localUsers, (response: any) => {
       if (response.success) {
         setUsers(response.users);
@@ -50,8 +49,7 @@ export function HomePage() {
         console.error("Failed to add users:", response.error);
       }
     });
-  
-    // Cleanup listeners on component unmount
+
     return () => {
       socket.off("messages");
     };
@@ -77,15 +75,15 @@ export function HomePage() {
   }
 
   return (
-    <div className="chat-container">
-      <div className="channel-list">
+    <div className="flex h-screen">
+      <div className="w-1/4 p-4 bg-gray-800 text-white">
         <Channels
           channels={channels}
           activeChannel={activeChannel}
           onChannelSelect={handleChannelSelect}
         />
       </div>
-      <div className="chat-window">
+      <div className="flex-1 p-4 flex flex-col">
         {activeChannel ? (
           <ChatWindow
             channel={activeChannel}
@@ -95,17 +93,21 @@ export function HomePage() {
             onSendMessage={handleSendMessage}
           />
         ) : (
-          <div>Select a channel to start chatting</div>
+          <div className="flex items-center justify-center h-full text-gray-500">
+            Select a channel to start chatting
+          </div>
         )}
       </div>
-      <div className="user-list">
-        <h3>Users</h3>
-        <ul>
+      {/* <div className="w-1/4 p-4 bg-gray-100">
+        <h3 className="text-lg font-bold">Users</h3>
+        <ul className="mt-4 space-y-2">
           {users.map((user) => (
-            <li key={user.id}>{user.name}</li>
+            <li key={user.id} className="p-2 bg-white rounded-lg shadow">
+              {user.name}
+            </li>
           ))}
         </ul>
-      </div>
+      </div> */}
     </div>
   );
 }
@@ -123,8 +125,10 @@ function Channels({
   const { logout } = useLoggedInAuth();
 
   return (
-    <div className="w-60 flex flex-col gap-4 m-3 h-full">
-      <Button onClick={() => navigate("/channel/new")}>New Conversation</Button>
+    <div className="flex flex-col gap-4">
+      <Button onClick={() => navigate("/channel/new")} className="mb-4">
+        New Conversation
+      </Button>
       <hr className="border-gray-500" />
       {channels.length > 0 ? (
         channels.map((channel) => {
@@ -139,12 +143,6 @@ function Channels({
               className={`p-4 rounded-lg flex gap-3 items-center ${extraClasses}`}
               key={channel.id}
             >
-              {/* {channel.image && (
-                <img
-                  src={channel.image}
-                  className="w-10 h-10 rounded-full object-center object-cover"
-                />
-              )} */}
               <div className="text-ellipsis overflow-hidden whitespace-nowrap">
                 {channel.name || channel.id}
               </div>
@@ -152,7 +150,7 @@ function Channels({
           );
         })
       ) : (
-        "No Conversations"
+        <div>No Conversations</div>
       )}
       <hr className="border-gray-500 mt-auto" />
       <Button onClick={() => logout.mutate()} disabled={logout.isPending}>
@@ -176,24 +174,38 @@ function ChatWindow({
   onSendMessage: () => void;
 }) {
   return (
-    <div className="chat-window-inner">
-      <div className="chat-header">
-        <h2>{channel.name}</h2>
+    <div className="flex flex-col h-full">
+      <div className="border-b-2 p-4">
+        <h2 className="text-xl font-bold">{channel.name}</h2>
+          {channel.members != undefined ? (
+          <ul className="list-disc list-inside ml-4 mt-2">
+            {channel.members.map((member, index) => (
+              <li key={index} className="text-sm text-gray-700">
+                {member}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-red-500 mt-2">No members available</p>
+        )}
       </div>
-      <div className="message-list">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message, index) => (
-          <div key={index} className="message">
+          <div key={index} className="bg-gray-200 p-2 rounded-lg">
             {message}
           </div>
         ))}
       </div>
-      <div className="message-input">
+      <div className="p-4 flex items-center border-t-2">
         <input
           type="text"
           value={newMessage}
           onChange={(e) => onMessageChange(e.target.value)}
+          className="flex-1 p-2 border rounded-lg w-5/6"
         />
-        <Button onClick={onSendMessage}>Send</Button>
+        <Button onClick={onSendMessage} className="ml-2 w-1/6">
+          Send
+        </Button>
       </div>
     </div>
   );

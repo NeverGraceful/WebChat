@@ -8,11 +8,20 @@ interface User {
   name: string;
 }
 
-const users: User[] = [];
+interface Channel {
+  id: string;
+  name: string;
+  memberIds: string[];
+  creatorId: string;
+}
+
+// let serverUsers: User[] = [];
+// let serverChannels: Channel[] = [];
+
 const TOKEN_USER_ID_MAP = new Map<string, string>();
 
 router.post('/signup', (req: Request, res: Response) => {
-  const { id, name } = req.body;
+  const { id, name, users } = req.body;
   console.log('Received signup request:', { id, name });
 
   if (!id || !name) {
@@ -27,7 +36,7 @@ router.post('/signup', (req: Request, res: Response) => {
   }
 
   const newUser: User = { id, name };
-  users.push(newUser);
+  // users.push(newUser);
   console.log('User signed up successfully:', newUser);
   res.send({
     user: { name: newUser.name, id: newUser.id },
@@ -35,7 +44,7 @@ router.post('/signup', (req: Request, res: Response) => {
 });
 
 router.post('/login', (req: Request, res: Response) => {
-  const { id } = req.body;
+  const { id, users } = req.body;
   console.log('Received login request:', { id });
   if (!id) {
     return res.status(400).send('Invalid input');
@@ -53,6 +62,22 @@ router.post('/login', (req: Request, res: Response) => {
   res.send({
     token,
     user: { name: user.name, id: user.id },
+  });
+});
+
+router.post('/channels', (req: Request, res: Response) => {
+  const { channel, channels } = req.body;
+  console.log('Received new channel request:', { channel });
+
+  if (!channel) {
+    console.log('Invalid input');
+    return res.status(400).send('Invalid input');
+  }
+
+  channels.push(channel);
+  console.log('Channel created successfully. All channels:', channels);
+  res.send({
+    channels: channels
   });
 });
 
