@@ -74,10 +74,10 @@ router.post('/channels', (req: Request, res: Response) => {
     return res.status(400).send('Invalid input');
   }
 
-  channels.push(channel);
-  console.log('Channel created successfully. All channels:', channels);
+  const updatedChannels = [...channels, channel];
+  console.log('Channel created successfully. All channels:', updatedChannels);
   res.send({
-    channels: channels
+    channels: updatedChannels
   });
 });
 

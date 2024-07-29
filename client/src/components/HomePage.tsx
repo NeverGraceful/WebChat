@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/Button";
 import { useLoggedInAuth } from "./context/AuthContext";
-import { useLocalStorage } from "./hooks/useLocalStorage";
+// import { useLocalStorage } from "./hooks/useLocalStorage";
 
 type Channel = {
   id: string;
@@ -15,102 +15,82 @@ type User = {
   name: string;
 };
 
-export function HomePage() {
-  const { user, socket } = useLoggedInAuth();
+const removeDuplicateChannels = (channels: Channel[]) => {
+  const channelMap = new Map();
+  channels.forEach((channel) => {
+    channelMap.set(channel.id, channel);
+  });
+  return Array.from(channelMap.values());
+};
+
+const HomePage = () => {
+  const navigate = useNavigate();
+  const { logout, createChannel } = useLoggedInAuth();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
-  const [messages, setMessages] = useState<string[]>([]);
-  const [newMessage, setNewMessage] = useState<string>("");
-  const [users, setUsers] = useState<User[]>([]);
-  const [localUsers] = useLocalStorage<User[]>("users", []);
-  const [localChannels] = useLocalStorage<Channel[]>("channels", []);
 
   useEffect(() => {
-    if (!socket) return;
+    const storedChannels = JSON.parse(localStorage.getItem("channels") || "[]");
+    setChannels(removeDuplicateChannels(storedChannels));
+  }, []);
 
-    socket.emit("update_channels", { localChannels });
-    // console.log(localChannels);
-    socket.emit("get_channels", { userId: user.id }, (response: any) => {
-      if (response.success) {
-        setChannels(response.channels);
-      } else {
-        console.error("Failed to get channels:", response.error);
-      }
-    });
-
-    socket.on("messages", (messages: string[]) => {
-      setMessages(messages);
-    });
-
-    socket.emit("add_and_get_users", localUsers, (response: any) => {
-      if (response.success) {
-        setUsers(response.users);
-      } else {
-        console.error("Failed to add users:", response.error);
-      }
-    });
-
-    return () => {
-      socket.off("messages");
-    };
-  }, [socket, user.id]);
+  useEffect(() => {
+    // Update local storage whenever channels state changes
+    localStorage.setItem("channels", JSON.stringify(channels));
+  }, [channels]);
 
   const handleChannelSelect = (channel: Channel) => {
     setActiveChannel(channel);
-    if (socket) {
-      socket.emit("join_channel", { channelId: channel.id });
-    }
   };
 
-  const handleSendMessage = () => {
-    if (newMessage.trim() === "") return;
-    if (socket) {
-      socket.emit("send_message", { channelId: activeChannel?.id, message: newMessage });
-    }
-    setNewMessage("");
+  const handleCreateChannel = (newChannel: Channel) => {
+    createChannel.mutate(newChannel, {
+      onSuccess: (data) => {
+        setChannels((prevChannels) => {
+          if (!prevChannels) {
+            return removeDuplicateChannels(data.channels);
+          }
+  
+          const mergedChannels = [...prevChannels, ...data.channels];
+          const uniqueChannels = removeDuplicateChannels(mergedChannels);
+  
+          localStorage.setItem("channels", JSON.stringify(uniqueChannels));
+          return uniqueChannels;
+        });
+        navigate("/");
+      },
+      onError: (error) => {
+        console.error("Failed to create channel:", error);
+        alert("Failed to create channel. Please try again.");
+      },
+    });
   };
-
-  if (!socket) {
-    return <div>Loading...</div>;
-  }
 
   return (
     <div className="flex h-screen">
-      <div className="w-1/4 p-4 bg-gray-800 text-white">
+      <div className="w-1/3 bg-gray-200 p-4">
         <Channels
           channels={channels}
           activeChannel={activeChannel}
           onChannelSelect={handleChannelSelect}
         />
       </div>
-      <div className="flex-1 p-4 flex flex-col">
+      <div className="flex-1 p-4">
         {activeChannel ? (
           <ChatWindow
             channel={activeChannel}
-            messages={messages}
-            newMessage={newMessage}
-            onMessageChange={setNewMessage}
-            onSendMessage={handleSendMessage}
+            messages={[]} // Replace with actual messages
+            newMessage=""
+            onMessageChange={() => {}}
+            onSendMessage={() => {}}
           />
         ) : (
-          <div className="flex items-center justify-center h-full text-gray-500">
-            Select a channel to start chatting
-          </div>
+          <div>Select a conversation</div>
         )}
       </div>
-      {/* <div className="w-1/4 p-4 bg-gray-100">
-        <h3 className="text-lg font-bold">Users</h3>
-        <ul className="mt-4 space-y-2">
-          {users.map((user) => (
-            <li key={user.id} className="p-2 bg-white rounded-lg shadow">
-              {user.name}
-            </li>
-          ))}
-        </ul>
-      </div> */}
     </div>
   );
-}
+};
 
 function Channels({
   channels,
@@ -143,7 +123,7 @@ function Channels({
               className={`p-4 rounded-lg flex gap-3 items-center ${extraClasses}`}
               key={channel.id}
             >
-              <div className="text-ellipsis overflow-hidden whitespace-nowrap">
+              <div className="text-ellipsis overflow-hidden whitespace-nowrap text-black">
                 {channel.name || channel.id}
               </div>
             </button>
@@ -177,7 +157,7 @@ function ChatWindow({
     <div className="flex flex-col h-full">
       <div className="border-b-2 p-4">
         <h2 className="text-xl font-bold">{channel.name}</h2>
-          {channel.members != undefined ? (
+        {channel.members != undefined ? (
           <ul className="list-disc list-inside ml-4 mt-2">
             {channel.members.map((member, index) => (
               <li key={index} className="text-sm text-gray-700">
@@ -210,3 +190,5 @@ function ChatWindow({
     </div>
   );
 }
+
+export default HomePage;

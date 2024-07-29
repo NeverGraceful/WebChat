@@ -23,8 +23,7 @@ interface User {
 interface Channel {
   id: string;
   name: string;
-  memberIds: string[];
-  creatorId: string;
+  members: string[];
 }
 
 const Context = createContext<AuthContext | null>(null);
@@ -61,9 +60,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const uniqueUsers = Array.from(new Set(updatedUsers.map(user => user?.id)))
         .map(id => updatedUsers.find(user => user?.id === id))
         .filter((user): user is User => user !== undefined); // Filter out undefined values
-  
+      console.log("local users: ", updatedUsers);
       setUsers(uniqueUsers);
-      console.log("local users: ", uniqueUsers);
+      
       navigate("/login");
     },
   });
@@ -80,15 +79,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
   });
 
   const createChannel = useMutation({
-    mutationFn: (channel: Channel) => {
-      return axios.post(`${import.meta.env.VITE_SERVER_URL}/api/channels`, { channel, channels }).then(res => res.data);
+    mutationFn: async (channel: Channel) => {
+      const storedChannels = JSON.parse(localStorage.getItem("channels") || "[]");
+      return axios.post(`${import.meta.env.VITE_SERVER_URL}/api/channels`, { channel, channels: storedChannels }).then(res => res.data);
     },
     onSuccess(data) {
-      // console.log("data.channels: ", data.channels)
-      // const updatedChannels = [...(channels ?? []), data.channels];
-      // console.log("updatedChannels: ", updatedChannels)
-      setChannels(data.channels);
-      console.log("local channels: ", channels);
+      console.log("data.channels: ", data.channels);
+      setChannels(prevChannels => {
+        const channelsArray = prevChannels ?? [];
+        const updatedChannels = data.channels;
+  
+        // Create a map to store channels by their ID
+        const channelsMap = new Map();
+  
+        // Add existing channels to the map
+        channelsArray.forEach(channel => {
+          channelsMap.set(channel.id, channel);
+        });
+  
+        // Add/overwrite channels from the updated list
+        updatedChannels.forEach(channel => {
+          channelsMap.set(channel.id, channel);
+        });
+  
+        // Convert the map back to an array
+        const mergedChannels = Array.from(channelsMap.values());
+  
+        // Update local storage
+        localStorage.setItem("channels", JSON.stringify(mergedChannels));
+  
+        return mergedChannels;
+      });
       navigate("/");
     },
     onError(error) {
