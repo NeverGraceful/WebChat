@@ -2,6 +2,7 @@ import { FormEvent, useRef } from "react";
 import { Button } from "./Button";
 import { Input } from "./Input";
 import { useAuth } from "./context/AuthContext";
+import DebugStorage from './DebugStorage';
 
 export function SignupPage() {
   const { signup } = useAuth();
@@ -21,6 +22,7 @@ export function SignupPage() {
 
   return (
     <>
+      <DebugStorage/>
       <h1 className="text-3xl font-bold mb-8 text-center">Sign Up</h1>
       <form
         className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-5 items-center justify-items-end"

@@ -8,11 +8,27 @@ interface User {
   name: string;
 }
 
-const users: User[] = [];
+interface Channel {
+  id: string;
+  name: string;
+  members: string[];
+  messages: Message[];
+}
+
+interface Message {
+  name: string,
+  text: string,
+  time: string
+}
+
+
+// let serverUsers: User[] = [];
+// let serverChannels: Channel[] = [];
+
 const TOKEN_USER_ID_MAP = new Map<string, string>();
 
 router.post('/signup', (req: Request, res: Response) => {
-  const { id, name } = req.body;
+  const { id, name, users } = req.body;
   console.log('Received signup request:', { id, name });
 
   if (!id || !name) {
@@ -27,13 +43,15 @@ router.post('/signup', (req: Request, res: Response) => {
   }
 
   const newUser: User = { id, name };
-  users.push(newUser);
+  // users.push(newUser);
   console.log('User signed up successfully:', newUser);
-  res.send('User signed up');
+  res.send({
+    user: { name: newUser.name, id: newUser.id },
+  });
 });
 
 router.post('/login', (req: Request, res: Response) => {
-  const { id } = req.body;
+  const { id, users } = req.body;
   console.log('Received login request:', { id });
   if (!id) {
     return res.status(400).send('Invalid input');
@@ -45,12 +63,28 @@ router.post('/login', (req: Request, res: Response) => {
     return res.status(401).send('User not found');
   }
 
-  const token = `${id}-${new Date().getTime()}`; // Simple token for demo purposes
+  const token = `${id}-${new Date().getTime()}`; 
   TOKEN_USER_ID_MAP.set(token, user.id);
 
   res.send({
     token,
     user: { name: user.name, id: user.id },
+  });
+});
+
+router.post('/channels', (req: Request, res: Response) => {
+  const { channel, channels } = req.body;
+  console.log('Received new channel request:', { channel });
+
+  if (!channel) {
+    console.log('Invalid input');
+    return res.status(400).send('Invalid input');
+  }
+
+  const updatedChannels = [...channels, channel];
+  console.log('Channel created successfully. All channels:', updatedChannels);
+  res.send({
+    channels: updatedChannels
   });
 });
 

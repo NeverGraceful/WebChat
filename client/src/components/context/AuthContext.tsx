@@ -1,28 +1,39 @@
-import { useMutation, UseMutationOptions, UseMutationResult } from "@tanstack/react-query";
+import { useMutation, UseMutationResult } from "@tanstack/react-query";
 import axios, { AxiosResponse } from "axios";
-import {
-  createContext,
-  ReactNode,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
+import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 
-type AuthContext = {
+interface AuthContext {
   user?: User;
+  users?: User[];
   socket?: Socket;
-  signup: UseMutationResult<AxiosResponse, unknown, User>;
-  login: UseMutationResult<{ token: string; user: User }, unknown, string>;
-  logout: UseMutationResult<AxiosResponse, unknown, void>;
+  signup: UseMutationResult<{ user: User }, Error, User>;
+  login: UseMutationResult<{ token: string; user: User }, Error, string>;
+  logout: UseMutationResult<AxiosResponse, Error, void>;
+  createChannel: UseMutationResult<any, Error, Channel>;
+  clearStorage: any
 };
 
-type User = {
+interface User {
   id: string;
   name: string;
 };
+
+interface Channel {
+  id: string;
+  name: string;
+  members: string[];
+  messages: Message[];
+}
+
+interface Message {
+  name: string,
+  text: string,
+  time: string
+}
+
 
 const Context = createContext<AuthContext | null>(null);
 
@@ -31,8 +42,7 @@ export function useAuth() {
 }
 
 export function useLoggedInAuth() {
-  return useContext(Context) as AuthContext &
-    Required<Pick<AuthContext, "user">>;
+  return useContext(Context) as AuthContext & Required<Pick<AuthContext, "user">>;
 }
 
 type AuthProviderProps = {
@@ -42,68 +52,125 @@ type AuthProviderProps = {
 export function AuthProvider({ children }: AuthProviderProps) {
   const navigate = useNavigate();
   const [user, setUser] = useLocalStorage<User>("user");
+  const [users, setUsers] = useLocalStorage<User[]>("users", []);
+  const [channels, setChannels] = useLocalStorage<Channel[]>("channels", []);
   const [token, setToken] = useLocalStorage<string>("token");
-  const [socket, setSocket] = useState<Socket>();
+  const [socket, setSocket] = useState<Socket | undefined>();
 
   const signup = useMutation({
     mutationFn: (user: User) => {
-      console.log('Signing up user:', user);
-      return axios.post(`${import.meta.env.VITE_SERVER_URL}/api/signup`, user);
+      console.log("users: ", users);
+      return axios.post<{ user: User }>(`${import.meta.env.VITE_SERVER_URL}/api/signup`, { id: user.id, name: user.name, users })
+        .then(res => res.data);
     },
-    onSuccess() {
-      console.log('Signup successful');
+    onSuccess(data) {
+      // Ensure no duplicates
+      const updatedUsers = [...(users ?? []), data.user];
+      const uniqueUsers = Array.from(new Set(updatedUsers.map(user => user?.id)))
+        .map(id => updatedUsers.find(user => user?.id === id))
+        .filter((user): user is User => user !== undefined); // Filter out undefined values
+      console.log("local users: ", updatedUsers);
+      setUsers(uniqueUsers);
+      
       navigate("/login");
     },
   });
 
   const login = useMutation({
     mutationFn: (id: string) => {
-      console.log('Logging in user with ID:', id);
-      return axios
-        .post(`${import.meta.env.VITE_SERVER_URL}/api/login`, { id })
-        .then(res => {
-          console.log('Login response:', res.data);
-          return res.data as { token: string; user: User };
-        });
+      return axios.post<{ token: string; user: User }>(`${import.meta.env.VITE_SERVER_URL}/api/login`, { id, users })
+        .then(res => res.data);
     },
     onSuccess(data) {
-      console.log('Login successful:', data);
       setUser(data.user);
       setToken(data.token);
     },
   });
 
+  const createChannel = useMutation({
+    mutationFn: async (channel: Channel) => {
+      const storedChannels = JSON.parse(localStorage.getItem("channels") || "[]");
+      return axios.post(`${import.meta.env.VITE_SERVER_URL}/api/channels`, { channel, channels: storedChannels }).then(res => res.data);
+    },
+    onSuccess(data) {
+      console.log("data.channels: ", data.channels);
+      setChannels(prevChannels => {
+        const channelsArray = prevChannels ?? [];
+        const updatedChannels = data.channels;
+  
+        // Create a map to store channels by their ID
+        const channelsMap = new Map();
+  
+        // Add existing channels to the map
+        channelsArray.forEach(channel => {
+          channelsMap.set(channel.id, channel);
+        });
+  
+        // Add/overwrite channels from the updated list
+        updatedChannels.forEach(channel => {
+          channelsMap.set(channel.id, channel);
+        });
+  
+        // Convert the map back to an array
+        const mergedChannels = Array.from(channelsMap.values());
+  
+        // Update local storage
+        localStorage.setItem("channels", JSON.stringify(mergedChannels));
+  
+        return mergedChannels;
+      });
+      navigate("/");
+    },
+    onError(error) {
+      console.error("Failed to create channel:", error);
+      alert("Failed to create channel. Please try again.");
+    }
+  });
+
   const logout = useMutation({
     mutationFn: () => {
-      console.log('Logging out');
-      return axios.post(`${import.meta.env.VITE_SERVER_URL}/logout`, { token });
+      return axios.post(`${import.meta.env.VITE_SERVER_URL}/api/logout`, { token });
     },
     onSuccess() {
-      console.log('Logout successful');
       setUser(undefined);
       setToken(undefined);
       setSocket(undefined);
     },
   });
 
+  // Temporary clear function for debugging purposes
+  const clearStorage = () => {
+    localStorage.clear();
+    console.log('Local storage cleared');
+    setUsers([]);
+    setChannels([]);
+  };
+
   useEffect(() => {
     if (token == null || user == null) return;
-
-    console.log('Attempting to connect to socket with token:', token);
 
     const newSocket = io(import.meta.env.VITE_SERVER_URL, {
       auth: { token },
     });
 
+    newSocket.on('connect', () => {
+      console.log('Socket connected:', newSocket.id);
+      setSocket(newSocket);
+    });
+
+    newSocket.on('disconnect', () => {
+      console.log('Socket disconnected');
+      setSocket(undefined);
+    });
+
     return () => {
-      console.log('Disconnecting socket');
       newSocket.disconnect();
       setSocket(undefined);
     };
   }, [token, user]);
 
   return (
-    <Context.Provider value={{ signup, login, user, socket, logout }}>
+    <Context.Provider value={{ signup, login, user, users, socket, logout, createChannel, clearStorage }}>
       {children}
     </Context.Provider>
   );
