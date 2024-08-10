@@ -7,6 +7,7 @@ import { useLocalStorage } from "../hooks/useLocalStorage";
 
 interface AuthContext {
   user?: User;
+  users?: User[];
   socket?: Socket;
   signup: UseMutationResult<{ user: User }, Error, User>;
   login: UseMutationResult<{ token: string; user: User }, Error, string>;
@@ -24,7 +25,15 @@ interface Channel {
   id: string;
   name: string;
   members: string[];
+  messages: Message[];
 }
+
+interface Message {
+  name: string,
+  text: string,
+  time: string
+}
+
 
 const Context = createContext<AuthContext | null>(null);
 
@@ -161,7 +170,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [token, user]);
 
   return (
-    <Context.Provider value={{ signup, login, user, socket, logout, createChannel, clearStorage }}>
+    <Context.Provider value={{ signup, login, user, users, socket, logout, createChannel, clearStorage }}>
       {children}
     </Context.Provider>
   );

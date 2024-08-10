@@ -11,9 +11,16 @@ interface User {
 interface Channel {
   id: string;
   name: string;
-  memberIds: string[];
-  creatorId: string;
+  members: string[];
+  messages: Message[];
 }
+
+interface Message {
+  name: string,
+  text: string,
+  time: string
+}
+
 
 // let serverUsers: User[] = [];
 // let serverChannels: Channel[] = [];

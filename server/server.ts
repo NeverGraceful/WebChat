@@ -6,6 +6,7 @@ import cors from 'cors';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { userRoutes } from './routes/users';
+import { Console } from 'console';
 
 const app = express();
 
@@ -18,21 +19,27 @@ app.use(express.json());
 // Register user routes
 app.use('/api', userRoutes);
 
+interface Message {
+  name: string,
+  text: string,
+  time: string
+}
+
 interface Channel {
   id: string;
   name: string;
-  memberIds: string[];
-  creatorId: string;
+  members: string[];
+  messages: Message[];
 }
 
 let channels: Channel[] = [];
 
-interface Message {
-  channelId: string;
-  message: string;
-}
+// interface Message {
+//   channelId: string;
+//   message: string;
+// }
 
-let messages: Message[] = [];
+// let messages: Message[] = [];
 
 interface User {
   id: string;
@@ -52,35 +59,6 @@ const io = new Server(server, {
 
 // Debug socket connections
 io.on('connection', (socket) => {
-  console.log('a user connected', { id: socket.id, address: socket.handshake.address });
-
-  // Generates a unique channel ID
-  // const generateChannelId = (): string => {
-  //   return Math.random().toString(36).substring(2, 15);
-  // };
-
-  // Makes a new channel including all memberIds given
-  // socket.on('create_channel', ({ name, memberIds, creatorId }, callback) => {
-  //   if (!name || !memberIds || !creatorId) {
-  //     callback({ success: false, error: 'Invalid data' });
-  //     return;
-  //   }
-
-  //   let allMemberIds: string[] = [];
-  //   allMemberIds.push(creatorId);
-  //   allMemberIds.push(...memberIds);
-  
-  //   const newChannel: Channel = {
-  //     id: generateChannelId(),
-  //     name,
-  //     memberIds: allMemberIds,
-  //     creatorId,
-  //   };
-  
-  //   channels.push(newChannel);
-  //   console.log(channels);
-  //   callback({ success: true, channel: newChannel });
-  // });
 
   socket.on('update_channels', ({ localChannels }) => {
     if (localChannels != undefined){
@@ -93,14 +71,11 @@ io.on('connection', (socket) => {
 
   // Returns channel that corresponds to the channelId given
   socket.on('get_channel', ({ channelId }, callback) => {
-    let channel = channels.find(c => c.id === channelId);
-    // if (channel == undefined){
-    //   channel = localChannels.find(c => c.id === channelId);
-    // }
-    if (channel) {
-      callback({ success: true, channel });
+    let channel = get_channel(channelId);
+    if (channel){
+      callback({success: true, channel});
     } else {
-      callback({ success: false, error: 'Channel not found' });
+      callback({success: false, error: "Channel not found"});
     }
   });
 
@@ -111,7 +86,7 @@ io.on('connection', (socket) => {
       return;
     }
   
-    const userChannels = channels.filter(channel => Array.isArray(channel.memberIds) && channel.memberIds.includes(userId));
+    const userChannels = channels.filter(channel => Array.isArray(channel.members) && channel.members.includes(userId));
   
     if (userChannels.length > 0) {
       callback({ success: true, channels: userChannels });
@@ -123,8 +98,8 @@ io.on('connection', (socket) => {
   // Moves the user into a channel
   socket.on('join_channel', ({ channelId }) => {
     socket.join(channelId);
-    const channelMessages = messages[channelId] || [];
-    socket.emit('messages', channelMessages);
+    // const channelMessages = messages[channelId] || [];
+    socket.emit('get_channel_messages', channelId);
   });
   
   // Returns all users
@@ -149,10 +124,62 @@ io.on('connection', (socket) => {
     callback({ success: true, users });
   });
 
+  // socket.on('get_channel_messages', (channelId: string, callback) => {
+  //   const channel = get_channel(channelId);
+  //   if (channel) {
+  //     if (channel.messages.length == 0){
+  //       console.log("No messages in channel")
+  //     }
+  //     callback({ success: true, channel: channel.messages });
+  //   } else {
+  //     callback({ success: false, error: "Couldn't find channel" });
+  //   }
+  // });
+
+  // socket.on('send_message', (channelId: string, message: Message, callback) => {
+  //   const channel = get_channel(channelId);
+  //   if (channel) {
+  //     channel.messages.push(message);
+  //     callback({ success: true, channel: channel.messages });
+  //   } else {
+  //     callback({ success: false, error: "Couldn't find channel" });
+  //   }
+  // });
+
+  // socket.on('get_channel_messages', (channel: Channel, callback) => {
+  //   if (channel) {
+  //     if (channel.messages == undefined){
+  //       console.log("No messages in channel")
+  //     }
+  //     callback({ success: true, channel: channel.messages });
+  //   } else {
+  //     callback({ success: false, error: "Couldn't find channel" });
+  //   }
+  // });
+
+  socket.on('send_message', (channel: Channel, message: Message, callback) => {
+    if (channel && message != undefined) {
+      console.log(message)
+      channel.messages.push(message);
+      callback({ success: true, channel: channel.messages });
+    } else {
+      callback({ success: false, error: "Couldn't find channel" });
+    }
+  });
+
   socket.on('disconnect', () => {
-    console.log('user disconnected');
+    console.log("Socket disconnected")
   });
 });
+
+const get_channel = (channelId: string) => {
+  let channel = channels.find(c => c.id === channelId);
+    if (channel) {
+      return channel;
+    } else {
+      return null;
+    }
+}
 
 // Start the server
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3032; // Ensure the port is correctly set

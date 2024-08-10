@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+// import { useMutation, useQuery } from "@tanstack/react-query";
 import { FormEvent, useRef, useEffect } from "react";
 import { Button } from "./Button";
 import { AuthCard } from "./AuthCard";
@@ -6,7 +6,7 @@ import { Input } from "./Input";
 import { Link } from "./Link";
 import Select, { SelectInstance } from "react-select";
 import { useLoggedInAuth } from "./context/AuthContext";
-import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router-dom";
 import io from 'socket.io-client';
 
 const socket = io(import.meta.env.VITE_SERVER_URL);
@@ -19,15 +19,22 @@ interface User {
 interface Channel {
   id: string;
   name: string;
-  memberIds: string[];
-  creatorId: string;
+  members: string[];
+  messages: Message[];
+}
+
+interface Message {
+  name: string,
+  text: string,
+  time: string
 }
 
 export function Channel() {
-  const { user, createChannel } = useLoggedInAuth();
+  const { user, users, createChannel } = useLoggedInAuth();
   // const navigate = useNavigate();
   const nameRef = useRef<HTMLInputElement>(null);
   const memberIdsRef = useRef<SelectInstance<{ label: string; value: string }>>(null);
+
 
   // const createChannel = useMutation({
   //   mutationFn: ({ name, memberIds }: { name: string, memberIds: string[] }) => {
@@ -51,22 +58,22 @@ export function Channel() {
   //   }
   // });
 
-  const { data: users, isLoading: usersLoading, error: usersError } = useQuery({
-    queryKey: ["socket", "users", user.id],
-    queryFn: () => {
-      return new Promise<User[]>((resolve, reject) => {
-        socket.emit('get_users', (response: any) => {
-          if (response.success) {
-            resolve(response.users);
-            console.log("Users: ",users)
-          } else {
-            reject(response.error);
-          }
-        });
-      });
-    },
-    enabled: true,
-  });
+  // const { data: users, isLoading: usersLoading, error: usersError } = useQuery({
+  //   queryKey: ["socket", "users", user.id],
+  //   queryFn: () => {
+  //     return new Promise<User[]>((resolve, reject) => {
+  //       socket.emit('add_and_get_users', {}, (response: any) => {
+  //         if (response.success) {
+  //           resolve(response.users);
+  //           console.log("Users: ", users)
+  //         } else {
+  //           reject(response.error);
+  //         }
+  //       });
+  //     });
+  //   },
+  //   enabled: true,
+  // });
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -86,7 +93,9 @@ export function Channel() {
     allMemberIds.push(user.id);
     allMemberIds.push(...memberIds);
 
-    const newChannel: Channel = { id: generateChannelId(), name, memberIds: allMemberIds, creatorId: user.id};
+    let messages: Message[] = [];
+
+    const newChannel: Channel = { id: generateChannelId(), name, members: allMemberIds, messages };
 
     createChannel.mutate(newChannel);
   }
@@ -98,9 +107,9 @@ export function Channel() {
     };
   }, []);
 
-  if (usersError) {
-    return <div>Error loading users: {usersError.message}</div>;
-  }
+  // if (usersError) {
+  //   return <div>Error loading users: {usersError.message}</div>;
+  // }
 
   const channelMemberOptions = users?.map((userItem: User) => {
     if (userItem.id === user.id) {
@@ -128,7 +137,7 @@ export function Channel() {
             required
             isMulti
             classNames={{ container: () => "w-full" }}
-            isLoading={ usersLoading }
+            // isLoading={ usersLoading }
             options={ channelMemberOptions }
           />
           <Button
