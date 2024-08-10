@@ -26,17 +26,17 @@ const removeDuplicateChannels = (channels: Channel[]) => {
   return Array.from(channelMap.values());
 };
 
-const get_channel = (channelId: string, channels: Channel[], socket?: Socket ): Channel | undefined => {
-  if (socket){
-    socket.emit('update_channels', { localChannels: channels })
-    socket.emit('get_channel', {channelId}, (response: any) => {
-      if (response.success){
-        return response.channel
-      }
-    });
-  } 
-  return undefined;
-};
+// const get_channel = (channelId: string, channels: Channel[], socket?: Socket ): Channel | undefined => {
+//   if (socket){
+//     socket.emit('update_channels', { localChannels: channels })
+//     socket.emit('get_channel', {channelId}, (response: any) => {
+//       if (response.success){
+//         return response.channel
+//       }
+//     });
+//   } 
+//   return undefined;
+// };
 
 export const HomePage = () => {
   const { socket, user } = useLoggedInAuth();
@@ -57,45 +57,15 @@ export const HomePage = () => {
   useEffect(() => {
     if (!socket) return;
 
-    // const socketHandleSendMessage = (channelId: string, message: Message, callback: any) => {
+    // socket.on('get_channel_messages', (channelId: string, callback: any) => {
     //   const channel = get_channel(channelId, channels);
     //   if (channel) {
-    //     channel.messages.push(message);
-    //     console.log(channel.messages);
-    //     callback({ success: true, channel: channel.messages });
-    //     if (activeChannel?.id === channelId) {
-    //       setMessages([...channel.messages]);
+    //     if (channel.messages.length === 0) {
+    //       console.log("No messages in channel");
     //     }
-    //   } else {
-    //     callback({ success: false, error: "Couldn't find channel" });
-    //   }
-    // };
-
-    socket.on('get_channel_messages', (channelId: string, callback: any) => {
-      const channel = get_channel(channelId, channels);
-      if (channel) {
-        if (channel.messages.length === 0) {
-          console.log("No messages in channel");
-        }
-        callback({ success: true, channel: channel.messages });
-        setMessages(channel.messages);
-      } else {
-        callback({ success: false, error: "Couldn't find channel" });
-      }
-    });
-
-    // socket.on('send_message', (channelId: string, message: Message, callback: any) => {
-    //   console.log('Received send_message event', channelId, message);
-    //   const channel = get_channel(channelId, channels);
-    //   if (channel && channel != undefined) {
-    //     channel.messages.push(message);
-    //     console.log(channel.messages);
     //     callback({ success: true, channel: channel.messages });
-    //     if (activeChannel?.id === channelId) {
-    //       setMessages([...channel.messages]);
-    //     }
+    //     setMessages(channel.messages);
     //   } else {
-    //     console.log("Channel is null")
     //     callback({ success: false, error: "Couldn't find channel" });
     //   }
     // });
@@ -110,9 +80,9 @@ export const HomePage = () => {
     if (!socket) return;
 
     setActiveChannel(channel);
-    socket.emit('get_channel_messages', channel.id, (response: any) => {
+    socket.emit('get_channel_messages', channel, (response: any) => {
       if (response.success) {
-        setMessages(response.channel);
+        setMessages(response.channel_messages);
       } else {
         console.error(response.error);
       }
@@ -121,7 +91,7 @@ export const HomePage = () => {
 
   const handleSendMessage = () => {
     if (!socket || !activeChannel || !newMessage.trim()) return;
-
+  
     const message: Message = {
       name: user.name,
       text: newMessage,
@@ -131,14 +101,13 @@ export const HomePage = () => {
         second: 'numeric'
       }).format(new Date())
     };
-    console.log("here")
+  
     socket.emit('send_message', activeChannel, message, (response: any) => {
       if (response.success) {
-        console.log("send_message was successful")
-        setMessages(response.channel);
+        // Update the messages state
+        setMessages((prevMessages) => [...prevMessages, message]); // Append the new message
         setNewMessage('');
       } else {
-        console.log("error")
         console.error(response.error);
       }
     });

@@ -34,13 +34,6 @@ interface Channel {
 
 let channels: Channel[] = [];
 
-// interface Message {
-//   channelId: string;
-//   message: string;
-// }
-
-// let messages: Message[] = [];
-
 interface User {
   id: string;
   name: string;
@@ -124,44 +117,22 @@ io.on('connection', (socket) => {
     callback({ success: true, users });
   });
 
-  // socket.on('get_channel_messages', (channelId: string, callback) => {
-  //   const channel = get_channel(channelId);
-  //   if (channel) {
-  //     if (channel.messages.length == 0){
-  //       console.log("No messages in channel")
-  //     }
-  //     callback({ success: true, channel: channel.messages });
-  //   } else {
-  //     callback({ success: false, error: "Couldn't find channel" });
-  //   }
-  // });
-
-  // socket.on('send_message', (channelId: string, message: Message, callback) => {
-  //   const channel = get_channel(channelId);
-  //   if (channel) {
-  //     channel.messages.push(message);
-  //     callback({ success: true, channel: channel.messages });
-  //   } else {
-  //     callback({ success: false, error: "Couldn't find channel" });
-  //   }
-  // });
-
-  // socket.on('get_channel_messages', (channel: Channel, callback) => {
-  //   if (channel) {
-  //     if (channel.messages == undefined){
-  //       console.log("No messages in channel")
-  //     }
-  //     callback({ success: true, channel: channel.messages });
-  //   } else {
-  //     callback({ success: false, error: "Couldn't find channel" });
-  //   }
-  // });
+  socket.on('get_channel_messages', (channel: Channel, callback) => {
+    if (channel) {
+      if (channel.messages == undefined || channel.messages.length == 0){
+        console.log("No messages in channel")
+      }
+      callback({ success: true, channel_messages: channel.messages });
+    } else {
+      callback({ success: false, error: "Couldn't find channel" });
+    }
+  });
 
   socket.on('send_message', (channel: Channel, message: Message, callback) => {
-    if (channel && message != undefined) {
-      console.log(message)
-      channel.messages.push(message);
-      callback({ success: true, channel: channel.messages });
+    if (channel && message) {
+      channel.messages = [...(channel.messages || []), message]; 
+      console.log(channel.messages);
+      callback({ success: true, channel_messages: channel.messages });
     } else {
       callback({ success: false, error: "Couldn't find channel" });
     }
