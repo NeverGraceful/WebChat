@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/Button";
 import { useLoggedInAuth } from "./context/AuthContext";
-import { Socket } from "socket.io-client";
+// import { Socket } from "socket.io-client";
 // import { useLocalStorage } from "./hooks/useLocalStorage";
 
 interface Channel {
@@ -26,18 +26,6 @@ const removeDuplicateChannels = (channels: Channel[]) => {
   return Array.from(channelMap.values());
 };
 
-// const get_channel = (channelId: string, channels: Channel[], socket?: Socket ): Channel | undefined => {
-//   if (socket){
-//     socket.emit('update_channels', { localChannels: channels })
-//     socket.emit('get_channel', {channelId}, (response: any) => {
-//       if (response.success){
-//         return response.channel
-//       }
-//     });
-//   } 
-//   return undefined;
-// };
-
 export const HomePage = () => {
   const { socket, user } = useLoggedInAuth();
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -56,19 +44,6 @@ export const HomePage = () => {
 
   useEffect(() => {
     if (!socket) return;
-
-    // socket.on('get_channel_messages', (channelId: string, callback: any) => {
-    //   const channel = get_channel(channelId, channels);
-    //   if (channel) {
-    //     if (channel.messages.length === 0) {
-    //       console.log("No messages in channel");
-    //     }
-    //     callback({ success: true, channel: channel.messages });
-    //     setMessages(channel.messages);
-    //   } else {
-    //     callback({ success: false, error: "Couldn't find channel" });
-    //   }
-    // });
 
     return () => {
       socket.off('get_channel_messages');

@@ -53,7 +53,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const navigate = useNavigate();
   const [user, setUser] = useLocalStorage<User>("user");
   const [users, setUsers] = useLocalStorage<User[]>("users", []);
-  const [channels, setChannels] = useLocalStorage<Channel[]>("channels", []);
+  const [, setChannels] = useLocalStorage<Channel[]>("channels", []);
   const [token, setToken] = useLocalStorage<string>("token");
   const [socket, setSocket] = useState<Socket | undefined>();
 
